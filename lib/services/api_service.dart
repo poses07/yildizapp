@@ -6,15 +6,10 @@ import 'package:http/http.dart' as http;
 class ApiService {
   // Use 10.0.2.2 for Android Emulator, localhost for iOS simulator, or local IP for real device
   static String get _baseUrl {
-    if (kDebugMode) {
-      if (Platform.isAndroid) {
-        return 'http://10.0.2.2/yildizapp/backend/api';
-      } else if (Platform.isIOS) {
-        return 'http://localhost/yildizapp/backend/api';
-      }
-    }
-    // Fallback or production URL
-    return 'http://192.168.1.100/yildizapp/backend/api';
+    // Bilgisayarınızın yerel IP adresi (ipconfig ile alınan: 172.20.10.3)
+    // Bu IP, aynı ağdaki tüm cihazların (iOS, Android, Emulator) backend'e erişmesini sağlar.
+    // Telefonunuz ve bilgisayarınız aynı Wi-Fi ağında olmalıdır.
+    return 'http://172.20.10.3/yildizapp/backend/api';
   }
 
   Future<Map<String, dynamic>> getSettings() async {
