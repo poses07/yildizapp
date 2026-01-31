@@ -11,6 +11,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../services/places_service.dart';
 import '../services/directions_service.dart';
 import '../services/api_service.dart';
+import '../config/secrets.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -33,8 +34,8 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   final Completer<GoogleMapController> _controller = Completer();
   final PanelController _panelController = PanelController();
 
-  // API Key - In production, keep this secure!
-  final String _apiKey = "AIzaSyC180xlREmLzJJnQSKY1zZTCKIKa6AeiyE";
+  // API Key - Stored securely
+  final String _apiKey = AppSecrets.googleApiKey;
   late PlacesService _placesService;
   late DirectionsService _directionsService;
   String? _sessionToken;
