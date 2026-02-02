@@ -207,17 +207,17 @@ class ApiService {
               'distance_km': distanceKm,
             }),
           )
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 45));
 
       if (response.statusCode == 200) {
         return json.decode(response.body);
       }
     } catch (e) {
-      debugPrint('Connection Error: $e');
+      debugPrint('Connection Error (createBooking): $e');
     }
     return {
       'success': false,
-      'message': 'Bağlantı hatası: Lütfen internetinizi kontrol edin.',
+      'message': 'Bağlantı zaman aşımına uğradı. Lütfen tekrar deneyin.',
     };
   }
 
@@ -228,7 +228,9 @@ class ApiService {
         url += '?lat=$lat&lng=$lng';
       }
 
-      final response = await http.get(Uri.parse(url));
+      final response = await http
+          .get(Uri.parse(url))
+          .timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body);
@@ -237,7 +239,7 @@ class ApiService {
         }
       }
     } catch (e) {
-      debugPrint('Connection Error: $e');
+      debugPrint('Connection Error (getAvailableBookings): $e');
     }
     return [];
   }
