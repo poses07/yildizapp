@@ -35,10 +35,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
   final String _apiKey = "AIzaSyC180xlREmLzJJnQSKY1zZTCKIKa6AeiyE";
   late DirectionsService _directionsService;
 
-  LatLng _currentPosition = const LatLng(
-    36.899047,
-    30.799074,
-  ); // Antalya Airport default
+  LatLng _currentPosition = const LatLng(41.0082, 28.9784); // Istanbul default
+  bool _isLocationLoaded = false; // Konumun yüklendiğini takip etmek için
   bool _isOnline = false;
   DriverState _driverState = DriverState.offline;
   RideStatus _rideStatus = RideStatus.goingToPickup;
@@ -91,13 +89,27 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     Position position = await Geolocator.getCurrentPosition();
     setState(() {
       _currentPosition = LatLng(position.latitude, position.longitude);
+      _isLocationLoaded = true; // Konum başarıyla alındı
     });
 
     final GoogleMapController controller = await _controller.future;
     controller.animateCamera(CameraUpdate.newLatLng(_currentPosition));
   }
 
-  void _toggleOnlineStatus() {
+  void _toggleOnlineStatus() async {
+    if (!_isLocationLoaded) {
+      // Eğer konum henüz alınamadıysa tekrar dene
+      await _getCurrentLocation();
+      if (!_isLocationLoaded) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Konum alınamıyor. Lütfen GPS\'inizi kontrol edin.'),
+          ),
+        );
+        return;
+      }
+    }
+
     setState(() {
       _isOnline = !_isOnline;
       _driverState = _isOnline ? DriverState.online : DriverState.offline;
