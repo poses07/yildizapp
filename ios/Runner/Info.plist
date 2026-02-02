@@ -46,8 +46,13 @@
 		<key>UIApplicationSupportsIndirectInputEvents</key>
 		<true/>
 		<key>NSLocationWhenInUseUsageDescription</key>
-		<string>Bu uygulama, taksi çağırmak için konumunuza ihtiyaç duyar.</string>
-		<key>LSApplicationQueriesSchemes</key>
+	<string>Bu uygulama, taksi çağırmak için konumunuza ihtiyaç duyar.</string>
+	<key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSAllowsArbitraryLoads</key>
+        <true/>
+    </dict>
+	<key>LSApplicationQueriesSchemes</key>
 		<array>
 			<string>whatsapp</string>
 		</array>
