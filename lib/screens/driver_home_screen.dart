@@ -35,7 +35,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
   final String _apiKey = "AIzaSyC180xlREmLzJJnQSKY1zZTCKIKa6AeiyE";
   late DirectionsService _directionsService;
 
-  LatLng _currentPosition = const LatLng(41.0082, 28.9784); // Istanbul default
+  LatLng _currentPosition = const LatLng(
+    36.899047,
+    30.799074,
+  ); // Antalya Airport default
   bool _isOnline = false;
   DriverState _driverState = DriverState.offline;
   RideStatus _rideStatus = RideStatus.goingToPickup;
