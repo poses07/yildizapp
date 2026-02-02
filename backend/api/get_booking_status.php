@@ -1,6 +1,14 @@
 <?php
+ob_start(); // Start output buffering
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
+
+if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
 
 require_once __DIR__ . '/../db.php';
 
@@ -22,15 +30,17 @@ if ($booking_id) {
         
         $booking = $stmt->fetch(PDO::FETCH_ASSOC);
         
+        ob_clean(); // Clean buffer before output
         if ($booking) {
             echo json_encode(["success" => true, "data" => $booking]);
         } else {
             echo json_encode(["success" => false, "message" => "Booking not found."]);
         }
     } catch (PDOException $e) {
+        ob_clean();
         echo json_encode(["success" => false, "message" => "Database error: " . $e->getMessage()]);
     }
 } else {
+    ob_clean();
     echo json_encode(["success" => false, "message" => "Booking ID required."]);
 }
-?>

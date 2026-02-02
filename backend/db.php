@@ -18,4 +18,4 @@ try {
     // In production, log error and show generic message
     die(json_encode(['error' => 'Veritabanı bağlantı hatası: ' . $e->getMessage()]));
 }
-?>
+
