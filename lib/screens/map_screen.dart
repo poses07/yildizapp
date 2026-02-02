@@ -903,43 +903,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
           ),
         ),
         const SizedBox(height: 24),
-        // Recent Places
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: const CircleAvatar(
-            backgroundColor: Colors.grey,
-            child: Icon(Icons.home, color: Colors.white),
-          ),
-          title: Text(
-            "Ev",
-            style: GoogleFonts.poppins(
-              fontWeight: FontWeight.w600,
-              color: Colors.black87,
-            ),
-          ),
-          subtitle: const Text(
-            "Kadıköy, İstanbul",
-            style: TextStyle(color: Colors.grey),
-          ),
-        ),
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: const CircleAvatar(
-            backgroundColor: Colors.grey,
-            child: Icon(Icons.work, color: Colors.white),
-          ),
-          title: Text(
-            "İş",
-            style: GoogleFonts.poppins(
-              fontWeight: FontWeight.w600,
-              color: Colors.black87,
-            ),
-          ),
-          subtitle: const Text(
-            "Levent, İstanbul",
-            style: TextStyle(color: Colors.grey),
-          ),
-        ),
       ],
     );
   }
