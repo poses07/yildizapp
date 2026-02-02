@@ -108,10 +108,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_driver'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reset_device'])) {
     $driverId = $_POST['driver_id'];
     try {
+        // Önce sürücünün user_id'sini bul
+        $stmt = $pdo->prepare("SELECT user_id FROM drivers WHERE id = ?");
+        $stmt->execute([$driverId]);
+        $userId = $stmt->fetchColumn();
+
+        $pdo->beginTransaction();
+
+        // Drivers tablosundan sil
         $stmt = $pdo->prepare("UPDATE drivers SET device_id = NULL WHERE id = ?");
         $stmt->execute([$driverId]);
-        $success = "Cihaz kilidi başarıyla kaldırıldı.";
+
+        // Users tablosundan da sil (Çünkü login işlemi users tablosuna bakıyor)
+        if ($userId) {
+            $stmt = $pdo->prepare("UPDATE users SET device_id = NULL WHERE id = ?");
+            $stmt->execute([$userId]);
+        }
+
+        $pdo->commit();
+        $success = "Cihaz kilidi başarıyla kaldırıldı (Sürücü ve Kullanıcı tablolarından).";
     } catch (PDOException $e) {
+        $pdo->rollBack();
         $error = "Hata: " . $e->getMessage();
     }
 }
