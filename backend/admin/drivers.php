@@ -11,7 +11,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_driver'])) {
     $fullName = $_POST['full_name'];
     $phone = $_POST['phone'];
     $username = $phone; // Username telefon numarası olarak ayarlandı
-    $password = md5($_POST['password']);
+    
+    // Şifre sistemi kullanılmadığı için rastgele bir değer atıyoruz
+    $password = md5(uniqid());
+
     $carModel = $_POST['car_model'];
     $plateNumber = $_POST['plate_number'];
     $duration = $_POST['duration']; // days
@@ -317,10 +320,8 @@ $drivers = $pdo->query("SELECT d.*, u.phone FROM drivers d LEFT JOIN users u ON 
                     <input type="text" name="phone" class="form-control" placeholder="5XXXXXXXXX" required>
                   </div>
                   <!-- Kullanıcı Adı alanı kaldırıldı, telefon numarası kullanılacak -->
-                  <div class="mb-3">
-                    <label class="form-label">Şifre</label>
-                    <input type="password" name="password" class="form-control" required>
-                  </div>
+                    <!-- Şifre alanı kaldırıldı (Sistemde şifre yok) -->
+                    <input type="hidden" name="password" value="auto_generated">
                         <div class="row">
                             <div class="col-6 mb-3">
                                 <label class="form-label">Araç Modeli</label>

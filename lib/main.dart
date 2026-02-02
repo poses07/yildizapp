@@ -1,7 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/login_screen.dart';
+import 'screens/home_screen.dart';
+import 'screens/driver_home_screen.dart';
+import 'services/api_service.dart';
 
 void main() {
   runApp(const YildizApp());
@@ -96,11 +100,54 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    Timer(const Duration(seconds: 3), () {
+    _checkLoginStatus();
+  }
+
+  Future<void> _checkLoginStatus() async {
+    // Wait for animation
+    await Future.delayed(const Duration(seconds: 3));
+    if (!mounted) return;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getInt('user_id');
+      final userPhone = prefs.getString('user_phone');
+
+      if (userId != null && userPhone != null) {
+        // Attempt to re-login to get fresh data and verify status
+        final response = await ApiService().userLogin(userPhone);
+
+        if (!mounted) return;
+
+        if (response['success'] == true) {
+          final role = response['role'];
+          final data = response['data'];
+
+          if (role == 'driver') {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (context) => DriverHomeScreen(driverData: data),
+              ),
+            );
+            return;
+          } else if (role == 'customer') {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (context) => const HomeScreen()),
+            );
+            return;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Auto-login error: $e');
+    }
+
+    // Default to login screen if any check fails
+    if (mounted) {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (context) => const LoginScreen()),
       );
-    });
+    }
   }
 
   @override

@@ -62,9 +62,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Fetch Users (Only Customers, exclude Drivers)
+// Fetch Users (Include Drivers but mark them, or handle as user requested)
+// Kullanıcı isteği: "hem müşteri hemde sürücü alanına geliyor veriler"
+// Bu nedenle Sürücü olanları BURADA GÖSTERMEMELİYİZ. Sadece "Sadece Müşteri" olanları göstermeliyiz.
 try {
-    // Sürücü tablosunda kaydı OLMAYAN kullanıcıları getir
+    // Sürücü tablosunda kaydı OLMAYAN kullanıcıları getir (Sadece Müşteriler)
     $stmt = $pdo->query("SELECT u.* FROM users u LEFT JOIN drivers d ON u.id = d.user_id WHERE d.id IS NULL ORDER BY u.id DESC");
     $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {

@@ -41,9 +41,19 @@ class ApiService {
     return null;
   }
 
+  static const Map<String, String> _headers = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    'Connection':
+        'close', // Fix for "Connection closed before full header was received"
+  };
+
   Future<Map<String, dynamic>> getSettings() async {
     try {
-      final response = await http.get(Uri.parse('$_baseUrl/get_settings.php'));
+      final response = await http.get(
+        Uri.parse('$_baseUrl/get_settings.php'),
+        headers: _headers,
+      );
 
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body);
@@ -66,7 +76,7 @@ class ApiService {
       final deviceId = await _getDeviceId();
       final response = await http.post(
         Uri.parse('$_baseUrl/driver_login.php'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _headers,
         body: json.encode({
           'username': username,
           'password': password,
@@ -88,7 +98,7 @@ class ApiService {
       final deviceId = await _getDeviceId();
       final response = await http.post(
         Uri.parse('$_baseUrl/user_login.php'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _headers,
         body: json.encode({
           'phone': phone,
           'name': name,
@@ -114,7 +124,7 @@ class ApiService {
     try {
       final response = await http.post(
         Uri.parse('$_baseUrl/driver_register.php'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _headers,
         body: json.encode({
           'full_name': fullName,
           'phone': phone,
@@ -136,7 +146,7 @@ class ApiService {
     try {
       final response = await http.post(
         Uri.parse('$_baseUrl/send_otp.php'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _headers,
         body: json.encode({'full_name': fullName, 'phone': phone}),
       );
 
@@ -154,7 +164,7 @@ class ApiService {
       final deviceId = await _getDeviceId();
       final response = await http.post(
         Uri.parse('$_baseUrl/verify_otp.php'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _headers,
         body: json.encode({
           'phone': phone,
           'code': code,
@@ -185,7 +195,7 @@ class ApiService {
     try {
       final response = await http.post(
         Uri.parse('$_baseUrl/create_booking.php'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _headers,
         body: json.encode({
           'user_id': userId,
           'pickup_address': pickupAddress,
@@ -236,7 +246,7 @@ class ApiService {
     try {
       final response = await http.post(
         Uri.parse('$_baseUrl/accept_booking.php'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _headers,
         body: json.encode({'booking_id': bookingId, 'driver_id': driverId}),
       );
 
@@ -276,7 +286,7 @@ class ApiService {
     try {
       final response = await http.post(
         Uri.parse('$_baseUrl/update_booking_status.php'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _headers,
         body: json.encode({'booking_id': bookingId, 'status': status}),
       );
 

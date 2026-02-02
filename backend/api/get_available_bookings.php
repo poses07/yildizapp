@@ -30,7 +30,7 @@ try {
                 JOIN users u ON b.user_id = u.id 
                 WHERE b.status = 'pending' 
                 HAVING distance_from_driver <= :radius
-                ORDER BY b.created_at DESC";
+                ORDER BY distance_from_driver ASC";
         
         $stmt = $pdo->prepare($sql);
         $stmt->bindParam(':lat', $lat);

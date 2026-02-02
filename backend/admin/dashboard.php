@@ -21,7 +21,8 @@ $settings = $pdo->query("SELECT * FROM app_settings")->fetchAll();
 // İstatistikleri Çek
 $pendingDrivers = $pdo->query("SELECT COUNT(*) FROM drivers WHERE status = 'pending'")->fetchColumn();
 $totalDrivers = $pdo->query("SELECT COUNT(*) FROM drivers")->fetchColumn();
-$totalUsers = $pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();
+// Sadece Müşterileri Say (Sürücü olmayanlar)
+$totalUsers = $pdo->query("SELECT COUNT(*) FROM users u LEFT JOIN drivers d ON u.id = d.user_id WHERE d.id IS NULL")->fetchColumn();
 ?>
 <!DOCTYPE html>
 <html lang="tr">

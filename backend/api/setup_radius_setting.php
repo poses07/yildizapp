@@ -21,9 +21,9 @@ try {
     $exists = $stmt->fetchColumn();
 
     if (!$exists) {
-        $sql = "INSERT INTO app_settings (setting_key, setting_value) VALUES ('driver_search_radius', '5')"; // Default 5 km
+        $sql = "INSERT INTO app_settings (setting_key, setting_value) VALUES ('driver_search_radius', '50')"; // Default 50 km
         $pdo->exec($sql);
-        echo json_encode(["success" => true, "message" => "Settings table checked and driver_search_radius initialized to 5km."]);
+        echo json_encode(["success" => true, "message" => "Settings table checked and driver_search_radius initialized to 50km."]);
     } else {
         echo json_encode(["success" => true, "message" => "Settings table exists and driver_search_radius is already set."]);
     }
