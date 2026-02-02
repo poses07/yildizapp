@@ -18,8 +18,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->execute([$phone]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
+            // Eğer users tablosunda yoksa, drivers tablosuna bak (username = phone)
+            if (!$user) {
+                $stmt = $pdo->prepare("SELECT * FROM drivers WHERE username = ?");
+                $stmt->execute([$phone]);
+                $driver = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                if ($driver) {
+                    // Sürücü bulundu ama users kaydı eksik. Oluşturalım.
+                    $stmt = $pdo->prepare("INSERT INTO users (phone, name, status) VALUES (?, ?, 'active')");
+                    $stmt->execute([$phone, $driver['full_name']]);
+                    $newUserId = $pdo->lastInsertId();
+
+                    // Sürücüyü bu user_id ile güncelle
+                    $pdo->prepare("UPDATE drivers SET user_id = ? WHERE id = ?")->execute([$newUserId, $driver['id']]);
+
+                    // User nesnesini getir
+                    $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
+                    $stmt->execute([$newUserId]);
+                    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+                }
+            }
+
             if ($user) {
                 // Kullanıcı var
+                
+                // Device ID check
+                $inputDeviceId = isset($input['device_id']) ? $input['device_id'] : null;
+
+                if ($inputDeviceId) {
+                    if ($user['device_id'] !== null && $user['device_id'] !== '' && $user['device_id'] !== $inputDeviceId) {
+                        $response['success'] = false;
+                        $response['message'] = 'Bu hesaba sadece kayıtlı cihazdan giriş yapılabilir. Cihaz değişikliği için yönetici ile iletişime geçin.';
+                        echo json_encode($response);
+                        exit;
+                    }
+
+                    // If device_id is empty, save it
+                    if ($user['device_id'] === null || $user['device_id'] === '') {
+                        $upd = $pdo->prepare("UPDATE users SET device_id = ? WHERE id = ?");
+                        $upd->execute([$inputDeviceId, $user['id']]);
+                    }
+                }
                 
                 // Durum kontrolü
                 if ($user['status'] === 'blocked') {

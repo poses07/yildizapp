@@ -23,11 +23,22 @@
                 Müşteriler
             </a>
         </li>
-        <!-- Gelecekte eklenebilecek menüler -->
         <li>
-            <a href="#" class="nav-link text-white opacity-50">
+            <a href="bookings.php" class="nav-link text-white <?php echo basename($_SERVER['PHP_SELF']) == 'bookings.php' ? 'active bg-warning text-dark fw-bold' : ''; ?>">
                 <i class="fas fa-route me-2"></i>
-                Yolculuklar (Yakında)
+                Transferler
+            </a>
+        </li>
+        <li>
+            <a href="messages.php" class="nav-link text-white <?php echo basename($_SERVER['PHP_SELF']) == 'messages.php' ? 'active bg-warning text-dark fw-bold' : ''; ?>">
+                <i class="fas fa-envelope me-2"></i>
+                Mesajlar
+            </a>
+        </li>
+        <li>
+            <a href="ratings.php" class="nav-link text-white <?php echo basename($_SERVER['PHP_SELF']) == 'ratings.php' ? 'active bg-warning text-dark fw-bold' : ''; ?>">
+                <i class="fas fa-star me-2"></i>
+                Değerlendirmeler
             </a>
         </li>
     </ul>
@@ -73,6 +84,21 @@
             <li>
                 <a href="users.php" class="nav-link text-white <?php echo basename($_SERVER['PHP_SELF']) == 'users.php' ? 'active bg-warning text-dark' : ''; ?>">
                     <i class="fas fa-user-friends me-2"></i> Müşteriler
+                </a>
+            </li>
+            <li>
+                <a href="bookings.php" class="nav-link text-white <?php echo basename($_SERVER['PHP_SELF']) == 'bookings.php' ? 'active bg-warning text-dark' : ''; ?>">
+                    <i class="fas fa-route me-2"></i> Transferler
+                </a>
+            </li>
+            <li>
+                <a href="messages.php" class="nav-link text-white <?php echo basename($_SERVER['PHP_SELF']) == 'messages.php' ? 'active bg-warning text-dark' : ''; ?>">
+                    <i class="fas fa-envelope me-2"></i> Mesajlar
+                </a>
+            </li>
+            <li>
+                <a href="ratings.php" class="nav-link text-white <?php echo basename($_SERVER['PHP_SELF']) == 'ratings.php' ? 'active bg-warning text-dark' : ''; ?>">
+                    <i class="fas fa-star me-2"></i> Değerlendirmeler
                 </a>
             </li>
              <li>

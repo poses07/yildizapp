@@ -8,10 +8,12 @@ import 'package:sliding_up_panel/sliding_up_panel.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:uuid/uuid.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../widgets/rating_dialog.dart';
+import '../screens/chat_screen.dart';
 import '../services/places_service.dart';
 import '../services/directions_service.dart';
 import '../services/api_service.dart';
-import '../config/secrets.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -34,8 +36,8 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   final Completer<GoogleMapController> _controller = Completer();
   final PanelController _panelController = PanelController();
 
-  // API Key - Stored securely
-  final String _apiKey = AppSecrets.googleApiKey;
+  // API Key - In production, keep this secure!
+  final String _apiKey = "AIzaSyC180xlREmLzJJnQSKY1zZTCKIKa6AeiyE";
   late PlacesService _placesService;
   late DirectionsService _directionsService;
   String? _sessionToken;
@@ -64,19 +66,47 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   double _distance = 0.0;
 
   // Driver Data
-  final String _driverName = "Ahmet Yılmaz";
-  final double _driverRating = 4.9;
-  final LatLng _driverPosition = const LatLng(41.0122, 28.9760);
+  String _driverName = "Sürücü Atanıyor...";
+  final double _driverRating = 5.0;
+  LatLng _driverPosition = const LatLng(
+    41.0122,
+    28.9760,
+  ); // Default, will update
+  String _driverCarModel = "";
+  String _driverPlate = "";
 
   final TextEditingController _searchController = TextEditingController();
   Timer? _polyLineTimer;
+  Timer? _statusPollingTimer;
+  int? _currentBookingId;
 
   // Nearby Drivers Simulation
   BitmapDescriptor? _carIcon;
 
+  int? _userId;
+
+  @override
+  void initState() {
+    super.initState();
+    _placesService = PlacesService(_apiKey);
+    _directionsService = DirectionsService(_apiKey);
+    _loadUserId();
+    _loadCarIcon();
+    _getCurrentLocation();
+    _fetchSettings();
+  }
+
+  Future<void> _loadUserId() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _userId = prefs.getInt('user_id');
+    });
+  }
+
   @override
   void dispose() {
     _polyLineTimer?.cancel();
+    _statusPollingTimer?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -270,16 +300,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   }
 ]
 ''';
-
-  @override
-  void initState() {
-    super.initState();
-    _placesService = PlacesService(_apiKey);
-    _directionsService = DirectionsService(_apiKey);
-    _loadCarIcon();
-    _getCurrentLocation();
-    _fetchSettings();
-  }
 
   Future<void> _fetchSettings() async {
     final settings = await ApiService().getSettings();
@@ -583,33 +603,144 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     controller.animateCamera(CameraUpdate.newLatLngBounds(bounds, 80));
   }
 
-  void _callVehicle() {
+  void _callVehicle() async {
+    if (_userId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Kullanıcı bilgisi bulunamadı. Lütfen tekrar giriş yapın.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (_destinationPosition == null) return;
+
     setState(() {
       _rideState = RideState.searching;
     });
 
-    // 1. Searching (4 seconds)
-    Future.delayed(const Duration(seconds: 4), () {
-      if (mounted) {
-        setState(() {
-          _rideState = RideState.matching;
-        });
+    final response = await ApiService().createBooking(
+      userId: _userId!,
+      pickupAddress:
+          "Mevcut Konum", // Should ideally be geocoded or selected from map
+      dropoffAddress: _searchController.text,
+      pickupLat: _currentPosition.latitude,
+      pickupLng: _currentPosition.longitude,
+      dropoffLat: _destinationPosition!.latitude,
+      dropoffLng: _destinationPosition!.longitude,
+      price: _estimatedPrice,
+      distanceKm: _distance,
+    );
 
-        // 2. Matching (3 seconds)
-        Future.delayed(const Duration(seconds: 3), () {
+    if (!mounted) return;
+
+    if (response['success'] == true) {
+      setState(() {
+        _currentBookingId = int.tryParse(response['booking_id'].toString());
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Taksi çağrısı oluşturuldu! Sürücü aranıyor...'),
+        ),
+      );
+      _startBookingStatusPolling();
+    } else {
+      setState(() {
+        _rideState = RideState.routeSelected;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(response['message'] ?? 'Bir hata oluştu.')),
+      );
+    }
+  }
+
+  void _startBookingStatusPolling() {
+    _statusPollingTimer?.cancel();
+    _statusPollingTimer = Timer.periodic(const Duration(seconds: 3), (
+      timer,
+    ) async {
+      if (_currentBookingId == null) {
+        timer.cancel();
+        return;
+      }
+
+      final statusData = await ApiService().getBookingStatus(
+        _currentBookingId!,
+      );
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+
+      if (statusData['success'] == true) {
+        final booking = statusData['data'];
+        final status = booking['status'];
+
+        if (booking['driver_name'] != null) {
+          setState(() {
+            _driverName = booking['driver_name'];
+            _driverCarModel = booking['car_model'] ?? "";
+            _driverPlate = booking['plate_number'] ?? "";
+          });
+        }
+
+        if (status == 'accepted' && _rideState == RideState.searching) {
+          setState(() {
+            _rideState = RideState.driverFound;
+          });
+        } else if (status == 'on_way' && _rideState != RideState.rideActive) {
+          setState(() {
+            _rideState = RideState.rideActive;
+          });
+        } else if (status == 'completed') {
+          timer.cancel();
           if (mounted) {
+            _showRatingDialog(_currentBookingId!);
+          }
+        } else if (status == 'cancelled') {
+          timer.cancel();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Sürücü yolculuğu iptal etti.")),
+          );
+          _resetRide();
+        }
+
+        // Update driver location if available
+        if (booking['driver_lat'] != null && booking['driver_lng'] != null) {
+          double lat = double.tryParse(booking['driver_lat'].toString()) ?? 0;
+          double lng = double.tryParse(booking['driver_lng'].toString()) ?? 0;
+          if (lat != 0 && lng != 0) {
             setState(() {
-              _rideState = RideState.driverFound;
+              _driverPosition = LatLng(lat, lng);
               _updateMarkers();
             });
           }
-        });
+        }
       }
     });
   }
 
+  void _showRatingDialog(int bookingId) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (context) => RatingDialog(
+            bookingId: bookingId,
+            onSubmitted: () {
+              Navigator.of(context).pop(); // Close dialog
+              _resetRide();
+            },
+          ),
+    );
+  }
+
   void _resetRide() async {
+    _statusPollingTimer?.cancel();
     setState(() {
+      _currentBookingId = null;
       _rideState = RideState.idle;
       _destinationPosition = null;
       _searchController.clear();
@@ -621,6 +752,62 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
     final GoogleMapController controller = await _controller.future;
     controller.animateCamera(CameraUpdate.newLatLng(_currentPosition));
+  }
+
+  Future<void> _cancelBooking() async {
+    if (_currentBookingId == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Hata: Rezervasyon ID bulunamadı.')),
+        );
+      }
+      _resetRide(); // Force reset if ID is missing but state is searching
+      return;
+    }
+
+    // Show loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final result = await ApiService().updateBookingStatus(
+        _currentBookingId!,
+        'cancelled',
+      );
+
+      // Hide loading
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      if (result['success'] == true) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Yolculuk iptal edildi.')),
+          );
+        }
+        _resetRide();
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(result['message'] ?? 'İptal edilemedi.')),
+          );
+        }
+      }
+    } catch (e) {
+      // Hide loading
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Bağlantı hatası: $e')));
+      }
+    }
   }
 
   Widget _buildPanel(ScrollController sc) {
@@ -969,6 +1156,27 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             textAlign: TextAlign.center,
             style: GoogleFonts.poppins(color: Colors.grey),
           ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: _cancelBooking,
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                side: BorderSide(color: Colors.red.withValues(alpha: 0.5)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: Text(
+                "Aramayı İptal Et",
+                style: GoogleFonts.poppins(
+                  color: Colors.red,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -992,13 +1200,36 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             ),
           ),
           const SizedBox(height: 20),
-          Text(
-            "Sürücü Bulundu!",
-            style: GoogleFonts.poppins(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "Sürücü Bulundu!",
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.message, color: Colors.white),
+                onPressed: () {
+                  if (_currentBookingId != null) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder:
+                            (context) => ChatScreen(
+                              bookingId: _currentBookingId!,
+                              senderType: 'user',
+                              otherName: _driverName,
+                            ),
+                      ),
+                    );
+                  }
+                },
+              ),
+            ],
           ),
           const SizedBox(height: 20),
 
@@ -1051,7 +1282,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      "34 YLZ 34",
+                      _driverPlate,
                       style: GoogleFonts.poppins(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -1059,7 +1290,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                       ),
                     ),
                     Text(
-                      "Toyota Corolla",
+                      _driverCarModel,
                       style: GoogleFonts.poppins(
                         color: Colors.grey,
                         fontSize: 12,
@@ -1078,7 +1309,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: _resetRide,
+                  onPressed: _cancelBooking,
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     side: BorderSide(color: Colors.red.withValues(alpha: 0.5)),
@@ -1090,39 +1321,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                     "İptal Et",
                     style: GoogleFonts.poppins(
                       color: Colors.red,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () {
-                    setState(() {
-                      _rideState = RideState.matchCompleting;
-                    });
-
-                    // Simulate completion delay (3 seconds)
-                    Future.delayed(const Duration(seconds: 3), () {
-                      if (mounted) {
-                        setState(() {
-                          _rideState = RideState.rideActive;
-                        });
-                      }
-                    });
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFFD700),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: Text(
-                    "Kabul Et",
-                    style: GoogleFonts.poppins(
-                      color: Colors.black,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -1163,9 +1361,32 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             ),
           ),
           const SizedBox(height: 4),
-          Text(
-            "2 dakika içinde yanınızda olacak",
-            style: GoogleFonts.poppins(color: Colors.grey),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "2 dakika içinde yanınızda olacak",
+                style: GoogleFonts.poppins(color: Colors.grey),
+              ),
+              IconButton(
+                icon: const Icon(Icons.message, color: Colors.white),
+                onPressed: () {
+                  if (_currentBookingId != null) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder:
+                            (context) => ChatScreen(
+                              bookingId: _currentBookingId!,
+                              senderType: 'user',
+                              otherName: _driverName,
+                            ),
+                      ),
+                    );
+                  }
+                },
+              ),
+            ],
           ),
           const SizedBox(height: 20),
           Container(
@@ -1214,7 +1435,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      "34 YLZ 34",
+                      _driverPlate,
                       style: GoogleFonts.poppins(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -1222,7 +1443,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                       ),
                     ),
                     Text(
-                      "Toyota Corolla",
+                      _driverCarModel,
                       style: GoogleFonts.poppins(
                         color: Colors.grey,
                         fontSize: 12,
@@ -1238,7 +1459,21 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             children: [
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () {},
+                  onPressed: () {
+                    if (_currentBookingId != null) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (context) => ChatScreen(
+                                bookingId: _currentBookingId!,
+                                senderType: 'user',
+                                otherName: _driverName,
+                              ),
+                        ),
+                      );
+                    }
+                  },
                   icon: const Icon(Icons.message, color: Colors.white),
                   label: const Text("Mesaj"),
                   style: OutlinedButton.styleFrom(

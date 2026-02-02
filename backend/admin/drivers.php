@@ -9,8 +9,8 @@ require_once '../db.php';
 // Sürücü Ekleme
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_driver'])) {
     $fullName = $_POST['full_name'];
-    $phone = $_POST['phone']; // Telefon numarası eklendi
-    $username = $_POST['username'];
+    $phone = $_POST['phone'];
+    $username = $phone; // Username telefon numarası olarak ayarlandı
     $password = md5($_POST['password']);
     $carModel = $_POST['car_model'];
     $plateNumber = $_POST['plate_number'];
@@ -74,6 +74,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['extend_subscription']
     $success = "Süre başarıyla uzatıldı!";
 }
 
+// Sürücü Düzenleme
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_driver'])) {
+    $driverId = $_POST['driver_id'];
+    $fullName = $_POST['full_name'];
+    $carModel = $_POST['car_model'];
+    $plateNumber = $_POST['plate_number'];
+    $status = $_POST['status'];
+
+    try {
+        $stmt = $pdo->prepare("UPDATE drivers SET full_name = ?, car_model = ?, plate_number = ?, status = ? WHERE id = ?");
+        $stmt->execute([$fullName, $carModel, $plateNumber, $status, $driverId]);
+        
+        // Users tablosundaki ismi de güncelle
+        $stmt = $pdo->prepare("SELECT user_id FROM drivers WHERE id = ?");
+        $stmt->execute([$driverId]);
+        $userId = $stmt->fetchColumn();
+        
+        if ($userId) {
+            $pdo->prepare("UPDATE users SET name = ? WHERE id = ?")->execute([$fullName, $userId]);
+        }
+
+        $success = "Sürücü bilgileri güncellendi!";
+    } catch (Exception $e) {
+        $error = "Hata: " . $e->getMessage();
+    }
+}
+
+// Cihaz Kilidi Sıfırlama
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reset_device'])) {
+    $driverId = $_POST['driver_id'];
+    try {
+        $stmt = $pdo->prepare("UPDATE drivers SET device_id = NULL WHERE id = ?");
+        $stmt->execute([$driverId]);
+        $success = "Cihaz kilidi başarıyla kaldırıldı.";
+    } catch (PDOException $e) {
+        $error = "Hata: " . $e->getMessage();
+    }
+}
+
+// Sürücü Onaylama
+if (isset($_GET['approve'])) {
+    $driverId = $_GET['approve'];
+    // 30 gün deneme süresi ver
+    $subscriptionEnd = date('Y-m-d H:i:s', strtotime("+30 days"));
+    
+    $stmt = $pdo->prepare("UPDATE drivers SET status = 'approved', subscription_end_date = ? WHERE id = ?");
+    $stmt->execute([$subscriptionEnd, $driverId]);
+    
+    header("Location: drivers.php?success=approved");
+    exit;
+}
+
 // Sürücü Silme
 if (isset($_GET['delete'])) {
     $stmt = $pdo->prepare("DELETE FROM drivers WHERE id = ?");
@@ -106,10 +158,11 @@ $drivers = $pdo->query("SELECT d.*, u.phone FROM drivers d LEFT JOIN users u ON 
             padding: 20px;
         }
         @media (max-width: 768px) {
-            .main-content {
-                margin-left: 0;
-            }
-        }
+             .main-content {
+               margin-left: 0;
+               padding-top: 60px;
+             }
+           }
     </style>
 </head>
 <body>
@@ -139,47 +192,108 @@ $drivers = $pdo->query("SELECT d.*, u.phone FROM drivers d LEFT JOIN users u ON 
                 </button>
             </div>
 
-            <div class="row">
-                <?php foreach ($drivers as $driver): 
-                    $timeLeft = strtotime($driver['subscription_end_date']) - time();
-                    $isExpired = $timeLeft < 0;
-                    $daysLeft = floor($timeLeft / (60 * 60 * 24));
-                ?>
-                <div class="col-md-6 col-lg-4 mb-4">
-                    <div class="card h-100">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start mb-3">
-                                <div>
-                                    <h5 class="card-title fw-bold mb-1"><?= htmlspecialchars($driver['full_name']) ?></h5>
-                                    <small class="text-muted">@<?= htmlspecialchars($driver['username']) ?></small>
-                                </div>
-                                <?php if ($isExpired): ?>
-                                    <span class="badge bg-danger status-badge">Süresi Doldu</span>
-                                <?php else: ?>
-                                    <span class="badge bg-success status-badge"><?= $daysLeft ?> Gün Kaldı</span>
-                                <?php endif; ?>
-                            </div>
-                            
-                            <p class="mb-1"><i class="fas fa-phone me-2 text-muted"></i><?= htmlspecialchars($driver['phone'] ?? 'Belirtilmemiş') ?></p>
-                            <p class="mb-1"><i class="fas fa-car me-2 text-muted"></i><?= htmlspecialchars($driver['car_model']) ?></p>
-                            <p class="mb-3"><i class="fas fa-hashtag me-2 text-muted"></i><?= htmlspecialchars($driver['plate_number']) ?></p>
-                            
-                            <div class="d-flex justify-content-between align-items-center border-top pt-3 mt-2">
-                                <small class="text-muted">Bitiş: <?= date('d.m.Y', strtotime($driver['subscription_end_date'])) ?></small>
-                                <div>
-                                    <button class="btn btn-sm btn-outline-primary me-1" 
-                                            onclick="openExtendModal(<?= $driver['id'] ?>, '<?= htmlspecialchars($driver['full_name']) ?>')">
-                                        <i class="fas fa-clock"></i> Uzat
-                                    </button>
-                                    <a href="?delete=<?= $driver['id'] ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('Silmek istediğinize emin misiniz?')">
-                                        <i class="fas fa-trash"></i>
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Sürücü Bilgileri</th>
+                                    <th>Araç Bilgileri</th>
+                                    <th>Durum</th>
+                                    <th>Abonelik Bitiş</th>
+                                    <th>İşlemler</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($drivers as $driver): 
+                                    $timeLeft = strtotime($driver['subscription_end_date']) - time();
+                                    $isExpired = $timeLeft < 0;
+                                    $daysLeft = floor($timeLeft / (60 * 60 * 24));
+                                    
+                                    $statusClass = 'bg-secondary';
+                                    $statusText = 'Bilinmiyor';
+                                    
+                                    if ($driver['status'] == 'pending') {
+                                        $statusClass = 'bg-warning text-dark';
+                                        $statusText = 'Onay Bekliyor';
+                                    } elseif ($driver['status'] == 'approved') {
+                                        $statusClass = 'bg-success';
+                                        $statusText = 'Onaylı';
+                                    } elseif ($driver['status'] == 'rejected') {
+                                        $statusClass = 'bg-danger';
+                                        $statusText = 'Reddedildi';
+                                    }
+                                    
+                                    // Süresi dolmuşsa ve onaylıysa uyar
+                                    if ($driver['status'] == 'approved' && $isExpired) {
+                                        $statusClass = 'bg-danger';
+                                        $statusText = 'Süresi Doldu';
+                                    }
+                                ?>
+                                <tr>
+                                    <td>#<?= $driver['id'] ?></td>
+                                    <td>
+                                        <div class="fw-bold"><?= htmlspecialchars($driver['full_name']) ?></div>
+                                        <div class="text-muted small"><i class="fas fa-phone me-1"></i><?= htmlspecialchars($driver['username'] ?? $driver['phone'] ?? 'Belirtilmemiş') ?></div>
+                                        <div class="mt-1">
+                                            <?php if (!empty($driver['device_id'])): ?>
+                                                <span class="badge bg-info text-dark" title="Cihaz Kilitli"><i class="fas fa-lock"></i> Kilitli</span>
+                                                <form method="POST" style="display:inline-block; margin-left: 5px;">
+                                                    <input type="hidden" name="driver_id" value="<?= $driver['id'] ?>">
+                                                    <button type="submit" name="reset_device" class="btn btn-warning btn-sm p-0 px-1" title="Kilidi Aç" onclick="return confirm('Cihaz kilidini kaldırmak istiyor musunuz?')">
+                                                        <i class="fas fa-unlock"></i>
+                                                    </button>
+                                                </form>
+                                            <?php else: ?>
+                                                <span class="badge bg-light text-muted border"><i class="fas fa-lock-open"></i> Serbest</span>
+                                            <?php endif; ?>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div><?= htmlspecialchars($driver['car_model']) ?></div>
+                                        <div class="text-muted small"><?= htmlspecialchars($driver['plate_number']) ?></div>
+                                    </td>
+                                    <td>
+                                        <span class="badge <?= $statusClass ?> status-badge"><?= $statusText ?></span>
+                                    </td>
+                                    <td>
+                                        <div><?= date('d.m.Y', strtotime($driver['subscription_end_date'])) ?></div>
+                                        <?php if ($driver['status'] == 'approved' && !$isExpired): ?>
+                                            <small class="text-success"><?= $daysLeft ?> gün kaldı</small>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group">
+                                            <?php if ($driver['status'] == 'pending'): ?>
+                                                <a href="?approve=<?= $driver['id'] ?>" class="btn btn-sm btn-success" title="Onayla">
+                                                    <i class="fas fa-check"></i>
+                                                </a>
+                                            <?php endif; ?>
+                                            
+                                            <button type="button" class="btn btn-sm btn-outline-primary" 
+                                                    onclick="openEditModal(<?= htmlspecialchars(json_encode($driver)) ?>)">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            
+                                            <button type="button" class="btn btn-sm btn-outline-warning" 
+                                                    onclick="openExtendModal(<?= $driver['id'] ?>, '<?= htmlspecialchars($driver['full_name']) ?>')">
+                                                <i class="fas fa-clock"></i>
+                                            </button>
+                                            
+                                            <a href="?delete=<?= $driver['id'] ?>" class="btn btn-sm btn-outline-danger" 
+                                               onclick="return confirm('Silmek istediğinize emin misiniz?')">
+                                                <i class="fas fa-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-                <?php endforeach; ?>
             </div>
         </div>
     </div>
@@ -199,17 +313,14 @@ $drivers = $pdo->query("SELECT d.*, u.phone FROM drivers d LEFT JOIN users u ON 
                             <input type="text" name="full_name" class="form-control" required>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Telefon Numarası</label>
-                            <input type="text" name="phone" class="form-control" placeholder="5XXXXXXXXX" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Kullanıcı Adı</label>
-                            <input type="text" name="username" class="form-control" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Şifre</label>
-                            <input type="password" name="password" class="form-control" required>
-                        </div>
+                    <label class="form-label">Telefon Numarası</label>
+                    <input type="text" name="phone" class="form-control" placeholder="5XXXXXXXXX" required>
+                  </div>
+                  <!-- Kullanıcı Adı alanı kaldırıldı, telefon numarası kullanılacak -->
+                  <div class="mb-3">
+                    <label class="form-label">Şifre</label>
+                    <input type="password" name="password" class="form-control" required>
+                  </div>
                         <div class="row">
                             <div class="col-6 mb-3">
                                 <label class="form-label">Araç Modeli</label>
@@ -233,6 +344,57 @@ $drivers = $pdo->query("SELECT d.*, u.phone FROM drivers d LEFT JOIN users u ON 
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
                         <button type="submit" name="add_driver" class="btn btn-primary">Kaydet</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Driver Modal -->
+    <div class="modal fade" id="editDriverModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Sürücü Düzenle</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="POST">
+                    <div class="modal-body">
+                        <input type="hidden" name="driver_id" id="editDriverId">
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Ad Soyad</label>
+                            <input type="text" name="full_name" id="editFullName" class="form-control" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Telefon Numarası</label>
+                            <input type="text" name="phone" id="editPhone" class="form-control" required>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label class="form-label">Araç Modeli</label>
+                                <input type="text" name="car_model" id="editCarModel" class="form-control" required>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label class="form-label">Plaka</label>
+                                <input type="text" name="plate_number" id="editPlateNumber" class="form-control" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Durum</label>
+                            <select name="status" id="editStatus" class="form-select">
+                                <option value="pending">Onay Bekliyor</option>
+                                <option value="approved">Onaylı</option>
+                                <option value="rejected">Reddedildi</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                        <button type="submit" name="edit_driver" class="btn btn-primary">Güncelle</button>
                     </div>
                 </form>
             </div>
@@ -276,6 +438,17 @@ $drivers = $pdo->query("SELECT d.*, u.phone FROM drivers d LEFT JOIN users u ON 
             document.getElementById('extendDriverId').value = id;
             document.getElementById('extendDriverName').innerText = name + ' için süre uzatılıyor';
             new bootstrap.Modal(document.getElementById('extendModal')).show();
+        }
+
+        function openEditModal(driver) {
+            document.getElementById('editDriverId').value = driver.id;
+            document.getElementById('editFullName').value = driver.full_name;
+            document.getElementById('editPhone').value = driver.phone || driver.username;
+            document.getElementById('editCarModel').value = driver.car_model;
+            document.getElementById('editPlateNumber').value = driver.plate_number;
+            document.getElementById('editStatus').value = driver.status;
+            
+            new bootstrap.Modal(document.getElementById('editDriverModal')).show();
         }
     </script>
 </body>

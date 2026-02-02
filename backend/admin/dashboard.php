@@ -17,6 +17,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_settings'])) {
 
 // Ayarları Çek
 $settings = $pdo->query("SELECT * FROM app_settings")->fetchAll();
+
+// İstatistikleri Çek
+$pendingDrivers = $pdo->query("SELECT COUNT(*) FROM drivers WHERE status = 'pending'")->fetchColumn();
+$totalDrivers = $pdo->query("SELECT COUNT(*) FROM drivers")->fetchColumn();
+$totalUsers = $pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();
 ?>
 <!DOCTYPE html>
 <html lang="tr">
@@ -48,6 +53,7 @@ $settings = $pdo->query("SELECT * FROM app_settings")->fetchAll();
         @media (max-width: 768px) {
             .main-content {
                 margin-left: 0;
+                padding-top: 60px;
             }
         }
     </style>
@@ -61,6 +67,49 @@ $settings = $pdo->query("SELECT * FROM app_settings")->fetchAll();
         <div class="container-fluid">
             <div class="row justify-content-center">
                 <div class="col-lg-10">
+                    
+                    <!-- Stats Cards -->
+                    <div class="row mb-4">
+                        <div class="col-md-4 mb-3 mb-md-0">
+                            <div class="card bg-warning text-dark h-100 shadow-sm border-0">
+                                <div class="card-body d-flex align-items-center justify-content-between">
+                                    <div>
+                                        <h6 class="card-title mb-1 fw-bold">Bekleyen Sürücüler</h6>
+                                        <h2 class="mb-0 fw-bold"><?= $pendingDrivers ?></h2>
+                                    </div>
+                                    <i class="fas fa-user-clock fa-3x opacity-50"></i>
+                                </div>
+                                <?php if($pendingDrivers > 0): ?>
+                                <a href="drivers.php" class="card-footer bg-transparent border-top-0 text-dark text-decoration-none small fw-bold">
+                                    İncele <i class="fas fa-arrow-right ms-1"></i>
+                                </a>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3 mb-md-0">
+                            <div class="card bg-white h-100 shadow-sm border-0">
+                                <div class="card-body d-flex align-items-center justify-content-between">
+                                    <div>
+                                        <h6 class="card-title mb-1 text-muted fw-bold">Toplam Sürücü</h6>
+                                        <h2 class="mb-0 fw-bold text-dark"><?= $totalDrivers ?></h2>
+                                    </div>
+                                    <i class="fas fa-taxi fa-3x text-warning opacity-50"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-white h-100 shadow-sm border-0">
+                                <div class="card-body d-flex align-items-center justify-content-between">
+                                    <div>
+                                        <h6 class="card-title mb-1 text-muted fw-bold">Toplam Müşteri</h6>
+                                        <h2 class="mb-0 fw-bold text-dark"><?= $totalUsers ?></h2>
+                                    </div>
+                                    <i class="fas fa-users fa-3x text-info opacity-50"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <?php if (isset($success)): ?>
                         <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
                             <i class="fas fa-check-circle me-2"></i> <?= $success ?>
@@ -88,7 +137,9 @@ $settings = $pdo->query("SELECT * FROM app_settings")->fetchAll();
                                                    class="form-control form-control-lg" 
                                                    value="<?= htmlspecialchars($setting['setting_value']) ?>"
                                                    placeholder="0.00">
-                                            <span class="input-group-text text-muted fw-bold">TL</span>
+                                            <span class="input-group-text text-muted fw-bold">
+                                                <?= $setting['setting_key'] === 'driver_search_radius' ? 'KM' : 'TL' ?>
+                                            </span>
                                         </div>
                                         <span class="setting-key"><i class="fas fa-code me-1"></i><?= $setting['setting_key'] ?></span>
                                     </div>

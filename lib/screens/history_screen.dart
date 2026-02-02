@@ -1,8 +1,45 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/api_service.dart';
 
-class HistoryScreen extends StatelessWidget {
+class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
+
+  @override
+  State<HistoryScreen> createState() => _HistoryScreenState();
+}
+
+class _HistoryScreenState extends State<HistoryScreen> {
+  List<dynamic> _bookings = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBookings();
+  }
+
+  Future<void> _loadBookings() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getInt('user_id');
+
+    if (userId != null) {
+      final bookings = await ApiService().getMyBookings(userId: userId);
+      if (mounted) {
+        setState(() {
+          _bookings = bookings;
+          _isLoading = false;
+        });
+      }
+    } else {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,17 +57,55 @@ class HistoryScreen extends StatelessWidget {
         elevation: 0,
         centerTitle: true,
       ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: 5, // Mock data
-        itemBuilder: (context, index) {
-          return _buildHistoryItem(context, index);
-        },
-      ),
+      body:
+          _isLoading
+              ? const Center(
+                child: CircularProgressIndicator(color: Color(0xFFFFD700)),
+              )
+              : _bookings.isEmpty
+              ? Center(
+                child: Text(
+                  "Henüz bir yolculuğunuz bulunmuyor.",
+                  style: GoogleFonts.poppins(color: Colors.white54),
+                ),
+              )
+              : ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: _bookings.length,
+                itemBuilder: (context, index) {
+                  final booking = _bookings[index];
+                  return _buildHistoryItem(context, booking);
+                },
+              ),
     );
   }
 
-  Widget _buildHistoryItem(BuildContext context, int index) {
+  Widget _buildHistoryItem(BuildContext context, dynamic booking) {
+    final pickup = booking['pickup_address'] ?? '';
+    final dropoff = booking['dropoff_address'] ?? '';
+    final price = booking['price'] ?? '0';
+    final date = booking['created_at'] ?? '';
+    final status = booking['status'] ?? 'pending';
+
+    final driverName = booking['driver_name'];
+
+    Color statusColor = Colors.orange;
+    String statusText = "Bekleniyor";
+
+    if (status == 'completed') {
+      statusColor = Colors.green;
+      statusText = "Tamamlandı";
+    } else if (status == 'cancelled') {
+      statusColor = Colors.red;
+      statusText = "İptal Edildi";
+    } else if (status == 'accepted') {
+      statusColor = Colors.blue;
+      statusText = "Kabul Edildi";
+    } else if (status == 'on_way') {
+      statusColor = Colors.blue;
+      statusText = "Yolda";
+    }
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
@@ -59,7 +134,7 @@ class HistoryScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "Kadıköy Rıhtım -> Beşiktaş",
+                  "$pickup -> $dropoff",
                   style: GoogleFonts.poppins(
                     color: Colors.white,
                     fontWeight: FontWeight.w600,
@@ -70,9 +145,19 @@ class HistoryScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  "29 Ocak 2026, 14:30",
+                  date,
                   style: GoogleFonts.poppins(color: Colors.grey, fontSize: 12),
                 ),
+                if (driverName != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    "Sürücü: $driverName",
+                    style: GoogleFonts.poppins(
+                      color: Colors.white70,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -80,7 +165,7 @@ class HistoryScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                "₺150.00",
+                "₺$price",
                 style: GoogleFonts.poppins(
                   color: const Color(0xFFFFD700),
                   fontWeight: FontWeight.bold,
@@ -91,12 +176,12 @@ class HistoryScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Colors.green.withValues(alpha: 0.2),
+                  color: statusColor.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
-                  "Tamamlandı",
-                  style: GoogleFonts.poppins(color: Colors.green, fontSize: 10),
+                  statusText,
+                  style: GoogleFonts.poppins(color: statusColor, fontSize: 10),
                 ),
               ),
             ],

@@ -1,7 +1,7 @@
 <?php
 session_start();
-if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
-    header('Location: login.php');
+if (!isset($_SESSION['admin_id'])) {
+    header("Location: index.php");
     exit;
 }
 
@@ -50,13 +50,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $error = "Hata: " . $e->getMessage();
                 }
             }
+        } elseif ($_POST['action'] === 'reset_device') {
+            try {
+                $stmt = $pdo->prepare("UPDATE users SET device_id = NULL WHERE id = ?");
+                $stmt->execute([$userId]);
+                $success = "Cihaz kilidi başarıyla kaldırıldı.";
+            } catch (PDOException $e) {
+                $error = "Hata: " . $e->getMessage();
+            }
         }
     }
 }
 
-// Fetch Users
+// Fetch Users (Only Customers, exclude Drivers)
 try {
-    $stmt = $pdo->query("SELECT * FROM users ORDER BY id DESC");
+    // Sürücü tablosunda kaydı OLMAYAN kullanıcıları getir
+    $stmt = $pdo->query("SELECT u.* FROM users u LEFT JOIN drivers d ON u.id = d.user_id WHERE d.id IS NULL ORDER BY u.id DESC");
     $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     die("Veritabanı hatası: " . $e->getMessage());
@@ -142,7 +151,26 @@ try {
                             <span class="badge bg-<?= $statusColor ?> status-badge"><?= $statusText ?></span>
                         </div>
                         
+                        <div class="mb-3">
+                            <small class="text-muted d-block">Cihaz Durumu:</small>
+                            <?php if (!empty($user['device_id'])): ?>
+                                <span class="badge bg-info text-dark"><i class="fas fa-lock me-1"></i>Kilitli</span>
+                            <?php else: ?>
+                                <span class="badge bg-secondary"><i class="fas fa-lock-open me-1"></i>Serbest</span>
+                            <?php endif; ?>
+                        </div>
+
                         <div class="d-grid gap-2 mt-4">
+                            <?php if (!empty($user['device_id'])): ?>
+                                <form method="POST" class="d-grid">
+                                    <input type="hidden" name="action" value="reset_device">
+                                    <input type="hidden" name="user_id" value="<?= $user['id'] ?>">
+                                    <button class="btn btn-outline-warning btn-sm btn-action text-dark">
+                                        <i class="fas fa-mobile-alt me-2"></i>Cihaz Kilidini Aç
+                                    </button>
+                                </form>
+                            <?php endif; ?>
+
                             <?php if ($user['status'] !== 'active'): ?>
                                 <form method="POST" class="d-grid">
                                     <input type="hidden" name="action" value="update_status">

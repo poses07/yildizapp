@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:country_code_picker/country_code_picker.dart';
 import '../services/api_service.dart';
 import 'home_screen.dart';
 import 'driver_home_screen.dart';
+import 'driver_register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -16,21 +18,303 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _phoneController = TextEditingController();
   bool _isLoading = false;
+  String _selectedCountryCode = '+90';
 
-  Future<void> _launchWhatsApp() async {
-    // Replace with the actual support number
-    const phoneNumber = "905555555555";
-    final whatsappUrl = Uri.parse(
-      "https://wa.me/$phoneNumber?text=Merhaba, Yıldız Taksi'ye üye olmak istiyorum.",
+  void _showRegistrationDialog() {
+    final nameController = TextEditingController();
+    final phoneController = TextEditingController();
+    final codeController = TextEditingController();
+    String dialogCountryCode = '+90';
+    bool isCodeSent = false;
+    bool isLoading = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+              backgroundColor: const Color(0xFF1E1E1E),
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Header Icon
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFD700).withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.person_add_rounded,
+                          color: Color(0xFFFFD700),
+                          size: 32,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      
+                      // Title
+                      Text(
+                        isCodeSent ? 'Doğrulama Kodu' : 'Yeni Üyelik',
+                        style: GoogleFonts.poppins(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        isCodeSent 
+                          ? 'Telefonunuza gönderilen 4 haneli kodu giriniz.' 
+                          : 'Hızlıca kayıt olup yolculuğa başlayın.',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.poppins(
+                          color: Colors.white54,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      if (!isCodeSent) ...[
+                        // Name Input
+                        Container(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF2C2C2C),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.white10),
+                          ),
+                          child: TextField(
+                            controller: nameController,
+                            style: const TextStyle(color: Colors.white),
+                            decoration: const InputDecoration(
+                              hintText: 'Ad Soyad',
+                              hintStyle: TextStyle(color: Colors.white38),
+                              prefixIcon: Icon(Icons.person_outline_rounded, color: Colors.white54),
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        
+                        // Phone Input
+                        Container(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF2C2C2C),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.white10),
+                          ),
+                          child: TextField(
+                            controller: phoneController,
+                            keyboardType: TextInputType.phone,
+                            style: const TextStyle(color: Colors.white),
+                            decoration: InputDecoration(
+                              hintText: '5XX XXX XX XX',
+                              hintStyle: const TextStyle(color: Colors.white38),
+                              border: InputBorder.none,
+                              contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                              prefixIcon: CountryCodePicker(
+                                onChanged: (country) {
+                                  dialogCountryCode = country.dialCode ?? '+90';
+                                },
+                                initialSelection: 'TR',
+                                favorite: const ['+90', 'TR'],
+                                showCountryOnly: false,
+                                showOnlyCountryWhenClosed: false,
+                                alignLeft: false,
+                                padding: EdgeInsets.zero,
+                                textStyle: const TextStyle(color: Colors.white),
+                                dialogBackgroundColor: const Color(0xFF1E1E1E),
+                                dialogTextStyle: const TextStyle(color: Colors.white),
+                                searchDecoration: const InputDecoration(
+                                  hintText: 'Ülke Ara',
+                                  hintStyle: TextStyle(color: Colors.white54),
+                                  prefixIcon: Icon(Icons.search, color: Colors.white54),
+                                  filled: true,
+                                  fillColor: Color(0xFF2C2C2C),
+                                  border: OutlineInputBorder(
+                                    borderSide: BorderSide.none,
+                                    borderRadius: BorderRadius.all(Radius.circular(10.0)),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ] else ...[
+                        // Code Input
+                        Container(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF2C2C2C),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.white10),
+                          ),
+                          child: TextField(
+                            controller: codeController,
+                            keyboardType: TextInputType.number,
+                            maxLength: 4,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              letterSpacing: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                            decoration: const InputDecoration(
+                              counterText: '',
+                              hintText: '----',
+                              hintStyle: TextStyle(color: Colors.white12, letterSpacing: 12),
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.symmetric(vertical: 16),
+                            ),
+                          ),
+                        ),
+                      ],
+
+                      const SizedBox(height: 32),
+
+                      // Action Button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 56,
+                        child: ElevatedButton(
+                          onPressed: isLoading
+                              ? null
+                              : () async {
+                                  if (!isCodeSent) {
+                                    // Send Code Logic
+                                    if (nameController.text.isEmpty || phoneController.text.isEmpty) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Lütfen tüm alanları doldurun.')),
+                                      );
+                                      return;
+                                    }
+
+                                    setState(() => isLoading = true);
+                                    final res = await ApiService().sendOtp(
+                                      nameController.text,
+                                      '$dialogCountryCode${phoneController.text}',
+                                    );
+                                    setState(() => isLoading = false);
+
+                                    if (res['success'] == true) {
+                                      setState(() => isCodeSent = true);
+                                    } else {
+                                      // ignore: use_build_context_synchronously
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(res['message'] ?? 'Hata oluştu'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
+                                  } else {
+                                    // Verify Code Logic
+                                    if (codeController.text.length != 4) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Lütfen 4 haneli kodu girin.')),
+                                      );
+                                      return;
+                                    }
+
+                                    setState(() => isLoading = true);
+                                    final res = await ApiService().verifyOtp(
+                                      '$dialogCountryCode${phoneController.text}',
+                                      codeController.text,
+                                    );
+                                    setState(() => isLoading = false);
+
+                                    if (res['success'] == true) {
+                                      // Save User Data
+                                      final prefs = await SharedPreferences.getInstance();
+                                      await prefs.setInt('user_id', res['data']['id']);
+                                      await prefs.setString('user_name', res['data']['name'] ?? '');
+                                      await prefs.setString('user_phone', res['data']['phone']);
+                                      await prefs.setString('user_role', 'customer');
+                                      if (res['data']['profile_photo'] != null) {
+                                        await prefs.setString('user_photo', res['data']['profile_photo']);
+                                      }
+
+                                      // ignore: use_build_context_synchronously
+                                      Navigator.pop(context); // Close dialog
+                                      // ignore: use_build_context_synchronously
+                                      Navigator.of(context).pushReplacement(
+                                        MaterialPageRoute(builder: (context) => const HomeScreen()),
+                                      );
+                                      // ignore: use_build_context_synchronously
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Kayıt başarılı! Hoş geldiniz.'),
+                                          backgroundColor: Colors.green,
+                                        ),
+                                      );
+                                    } else {
+                                      // ignore: use_build_context_synchronously
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(res['message'] ?? 'Hata oluştu'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
+                                  }
+                                },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFFFD700),
+                            foregroundColor: Colors.black,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          child: isLoading
+                              ? const SizedBox(
+                                  height: 24,
+                                  width: 24,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.black,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : Text(
+                                  isCodeSent ? 'Doğrula ve Başla' : 'Kodu Gönder',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Cancel Button
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: Text(
+                          'Vazgeç',
+                          style: GoogleFonts.poppins(
+                            color: Colors.white54,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
-
-    if (!await launchUrl(whatsappUrl, mode: LaunchMode.externalApplication)) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('WhatsApp açılamadı.')));
-      }
-    }
   }
 
   void _login() async {
@@ -45,7 +329,9 @@ class _LoginScreenState extends State<LoginScreen> {
       _isLoading = true;
     });
 
-    final response = await ApiService().userLogin(_phoneController.text);
+    final response = await ApiService().userLogin(
+      '$_selectedCountryCode${_phoneController.text}',
+    );
 
     if (mounted) {
       setState(() {
@@ -53,7 +339,28 @@ class _LoginScreenState extends State<LoginScreen> {
       });
 
       if (response['success'] == true) {
+        // Save user data
+        final prefs = await SharedPreferences.getInstance();
+        if (response['data'] != null) {
+          await prefs.setInt('user_id', response['data']['id']);
+          await prefs.setString(
+            'user_name',
+            response['data']['full_name'] ?? '',
+          );
+          await prefs.setString('user_phone', response['data']['phone']);
+          if (response['data']['profile_photo'] != null) {
+            await prefs.setString(
+              'user_photo',
+              response['data']['profile_photo'],
+            );
+          }
+        }
+
         final role = response['role'];
+        await prefs.setString('user_role', role);
+
+        if (!mounted) return;
+
         if (role == 'driver') {
           // Sürücü Ana Sayfasına Yönlendir
           Navigator.of(context).pushReplacement(
@@ -175,9 +482,42 @@ class _LoginScreenState extends State<LoginScreen> {
                         controller: _phoneController,
                         keyboardType: TextInputType.phone,
                         style: const TextStyle(color: Colors.white),
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: 'Telefon Numarası',
-                          prefixIcon: Icon(Icons.phone),
+                          prefixIcon: CountryCodePicker(
+                            onChanged: (country) {
+                              setState(() {
+                                _selectedCountryCode =
+                                    country.dialCode ?? '+90';
+                              });
+                            },
+                            initialSelection: 'TR',
+                            favorite: const ['+90', 'TR'],
+                            showCountryOnly: false,
+                            showOnlyCountryWhenClosed: false,
+                            alignLeft: false,
+                            textStyle: const TextStyle(color: Colors.white),
+                            dialogBackgroundColor: const Color(0xFF1E1E1E),
+                            dialogTextStyle: const TextStyle(
+                              color: Colors.white,
+                            ),
+                            searchDecoration: const InputDecoration(
+                              hintText: 'Ülke Ara',
+                              hintStyle: TextStyle(color: Colors.white54),
+                              prefixIcon: Icon(
+                                Icons.search,
+                                color: Colors.white54,
+                              ),
+                              filled: true,
+                              fillColor: Color(0xFF2C2C2C),
+                              border: OutlineInputBorder(
+                                borderSide: BorderSide.none,
+                                borderRadius: BorderRadius.all(
+                                  Radius.circular(10.0),
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -199,70 +539,52 @@ class _LoginScreenState extends State<LoginScreen> {
                                   : const Text("Giriş Yap"),
                         ),
                       ),
+                      const SizedBox(height: 24),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder:
+                                  (context) => const DriverRegisterScreen(),
+                            ),
+                          );
+                        },
+                        child: const Text(
+                          'Sürücü Olmak İstiyorum',
+                          style: TextStyle(
+                            color: Color(0xFFFFD700),
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
 
                       const SizedBox(height: 24),
 
-                      TextButton.icon(
-                        onPressed: _launchWhatsApp,
-                        icon: const Icon(
-                          Icons.support_agent,
-                          color: Colors.white70,
-                        ),
-                        label: const Text(
-                          "Hesabınız yok mu? Kayıt olmak için iletişime geçin.",
-                          style: TextStyle(color: Colors.white70),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
+                      Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Text(
+                                "Hesabınız yok mu?",
+                                style: TextStyle(color: Colors.white70),
+                              ),
+                              TextButton(
+                                onPressed: _showRegistrationDialog,
+                                child: const Text(
+                                  "Hemen Kayıt Olun",
+                                  style: TextStyle(
+                                    color: Color(0xFFFFD700),
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                          .animate()
+                          .fadeIn(delay: 700.ms)
+                          .slideY(begin: 0.2, end: 0),
                     ],
-                  ).animate().fadeIn(delay: 700.ms).slideY(begin: 0.2, end: 0),
-
-                  const SizedBox(height: 40),
-
-                  // Registration / Support
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white10),
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          "Üye değil misiniz?",
-                          style: GoogleFonts.poppins(color: Colors.white70),
-                        ),
-                        const SizedBox(height: 8),
-                        TextButton.icon(
-                          onPressed: _launchWhatsApp,
-                          icon: const Icon(
-                            Icons.chat,
-                            color: Color(0xFF25D366),
-                          ), // WhatsApp Green
-                          label: Text(
-                            "İletişime Geç",
-                            style: GoogleFonts.poppins(
-                              color: const Color(0xFF25D366),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          style: TextButton.styleFrom(
-                            backgroundColor: const Color(
-                              0xFF25D366,
-                            ).withValues(alpha: 0.1),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 24,
-                              vertical: 12,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ).animate().fadeIn(delay: 900.ms),
+                  ),
 
                   const SizedBox(height: 24),
                   Text(
