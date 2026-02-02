@@ -8,7 +8,7 @@ class ApiService {
   // Use 10.0.2.2 for Android Emulator, localhost for iOS simulator, or local IP for real device
   static String get _baseUrl {
     // Production URL (Canlı Sunucu)
-    return 'http://wowcrazyviptransfer.com/backend/api';
+    return 'http://wowcrazyviptransfer.com/api';
 
     /* Localhost Geliştirme Modu için:
     if (kDebugMode) {

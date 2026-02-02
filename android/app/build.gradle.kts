@@ -18,6 +18,16 @@ android {
         jvmTarget = JavaVersion.VERSION_11.toString()
     }
 
+    configurations.all {
+        resolutionStrategy {
+            eachDependency {
+                if (requested.group == "org.jetbrains.kotlin" && requested.name.startsWith("kotlin-stdlib")) {
+                    useVersion("1.9.24")
+                }
+            }
+        }
+    }
+
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.yildizapp"
