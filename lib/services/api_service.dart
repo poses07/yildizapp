@@ -44,8 +44,6 @@ class ApiService {
   static const Map<String, String> _headers = {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
-    'Connection':
-        'close', // Fix for "Connection closed before full header was received"
   };
 
   Future<Map<String, dynamic>> getSettings() async {
@@ -193,21 +191,23 @@ class ApiService {
     required double distanceKm,
   }) async {
     try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/create_booking.php'),
-        headers: _headers,
-        body: json.encode({
-          'user_id': userId,
-          'pickup_address': pickupAddress,
-          'dropoff_address': dropoffAddress,
-          'pickup_lat': pickupLat,
-          'pickup_lng': pickupLng,
-          'dropoff_lat': dropoffLat,
-          'dropoff_lng': dropoffLng,
-          'price': price,
-          'distance_km': distanceKm,
-        }),
-      );
+      final response = await http
+          .post(
+            Uri.parse('$_baseUrl/create_booking.php'),
+            headers: _headers,
+            body: json.encode({
+              'user_id': userId,
+              'pickup_address': pickupAddress,
+              'dropoff_address': dropoffAddress,
+              'pickup_lat': pickupLat,
+              'pickup_lng': pickupLng,
+              'dropoff_lat': dropoffLat,
+              'dropoff_lng': dropoffLng,
+              'price': price,
+              'distance_km': distanceKm,
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         return json.decode(response.body);
@@ -215,7 +215,10 @@ class ApiService {
     } catch (e) {
       debugPrint('Connection Error: $e');
     }
-    return {'success': false, 'message': 'Bağlantı hatası'};
+    return {
+      'success': false,
+      'message': 'Bağlantı hatası: Lütfen internetinizi kontrol edin.',
+    };
   }
 
   Future<List<dynamic>> getAvailableBookings({double? lat, double? lng}) async {

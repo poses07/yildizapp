@@ -42,7 +42,12 @@ class PlacesService {
           '&sessiontoken=$sessionToken'
           '&components=country:tr';
 
-      final response = await http.get(Uri.parse(url));
+      final response = await http.get(Uri.parse(url)).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw Exception('Connection timed out');
+        },
+      );
       debugPrint("Places API Response: ${response.body}");
 
       if (response.statusCode == 200) {
