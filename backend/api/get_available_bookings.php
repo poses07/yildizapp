@@ -41,7 +41,7 @@ try {
                     ))
                 )) AS distance_from_driver
                 FROM bookings b 
-                JOIN users u ON b.user_id = u.id 
+                LEFT JOIN users u ON b.user_id = u.id 
                 WHERE b.status = 'pending' 
                 HAVING distance_from_driver <= :radius
                 ORDER BY distance_from_driver ASC";
@@ -55,7 +55,7 @@ try {
         // If no location provided, show all
         $sql = "SELECT b.*, u.full_name as user_name, u.phone as user_phone 
                 FROM bookings b 
-                JOIN users u ON b.user_id = u.id 
+                LEFT JOIN users u ON b.user_id = u.id 
                 WHERE b.status = 'pending' 
                 ORDER BY b.created_at DESC";
         $stmt = $pdo->prepare($sql);
@@ -70,7 +70,7 @@ try {
          $sqlFallback = "SELECT b.*, u.full_name as user_name, u.phone as user_phone, 
                          0 as distance_from_driver
                          FROM bookings b 
-                         JOIN users u ON b.user_id = u.id 
+                         LEFT JOIN users u ON b.user_id = u.id 
                          WHERE b.status = 'pending' 
                          ORDER BY b.created_at DESC LIMIT 10";
          $stmtFallback = $pdo->prepare($sqlFallback);
