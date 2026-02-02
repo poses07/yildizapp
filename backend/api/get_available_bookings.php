@@ -33,9 +33,13 @@ try {
     // 2. Fetch Bookings
     if ($lat && $lng) {
         // Use Haversine formula to calculate distance and filter by radius
-        // 6371 is Earth's radius in kilometers
+        // Added LEAST/GREATEST to prevent acos domain error (NaN) if points are identical
         $sql = "SELECT b.*, u.full_name as user_name, u.phone as user_phone,
-                (6371 * acos(cos(radians(:lat)) * cos(radians(b.pickup_lat)) * cos(radians(b.pickup_lng) - radians(:lng)) + sin(radians(:lat)) * sin(radians(b.pickup_lat)))) AS distance_from_driver
+                (6371 * acos(
+                    LEAST(1.0, GREATEST(-1.0, 
+                        cos(radians(:lat)) * cos(radians(b.pickup_lat)) * cos(radians(b.pickup_lng) - radians(:lng)) + sin(radians(:lat)) * sin(radians(b.pickup_lat))
+                    ))
+                )) AS distance_from_driver
                 FROM bookings b 
                 JOIN users u ON b.user_id = u.id 
                 WHERE b.status = 'pending' 
@@ -59,6 +63,20 @@ try {
     }
     
     $bookings = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Fallback: If no bookings matched the radius/location criteria, return ALL pending bookings.
+    // This ensures drivers always see available jobs even if GPS/Calculation fails.
+    if (empty($bookings)) {
+         $sqlFallback = "SELECT b.*, u.full_name as user_name, u.phone as user_phone, 
+                         0 as distance_from_driver
+                         FROM bookings b 
+                         JOIN users u ON b.user_id = u.id 
+                         WHERE b.status = 'pending' 
+                         ORDER BY b.created_at DESC LIMIT 10";
+         $stmtFallback = $pdo->prepare($sqlFallback);
+         $stmtFallback->execute();
+         $bookings = $stmtFallback->fetchAll(PDO::FETCH_ASSOC);
+    }
     
     ob_clean();
     echo json_encode([
