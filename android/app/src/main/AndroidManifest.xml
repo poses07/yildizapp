@@ -6,7 +6,8 @@
         android:label="yildizapp"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon"
-        android:usesCleartextTraffic="true">
+        android:usesCleartextTraffic="true"
+        android:enableOnBackInvokedCallback="true">
         <meta-data android:name="com.google.android.geo.API_KEY"
                android:value="AIzaSyC180xlREmLzJJnQSKY1zZTCKIKa6AeiyE"/>
         <activity

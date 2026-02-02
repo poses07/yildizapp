@@ -9,19 +9,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     if (isset($input['phone'])) {
         $phone = $input['phone'];
-        // İsim alanı artık opsiyonel ve sadece yeni kayıtta kullanılabilir ama login ekranından kaldırıldı
-        // Ancak yine de API tarafında tutabiliriz.
+        
+        // Telefon numarası varyasyonlarını oluştur
+        $phoneVariations = [$phone];
+        
+        // Sadece rakamları al
+        $cleanPhone = preg_replace('/[^0-9]/', '', $phone);
+        
+        // Eğer 90 ile başlıyorsa (Türkiye kodu)
+        if (substr($cleanPhone, 0, 2) == '90') {
+             $phoneVariations[] = '0' . substr($cleanPhone, 2); // 0555... formatı
+             $phoneVariations[] = substr($cleanPhone, 2);      // 555... formatı
+        } else {
+            // Belki başında 0 vardır, onu atıp deneyelim
+            if (substr($cleanPhone, 0, 1) == '0') {
+                $phoneVariations[] = substr($cleanPhone, 1);
+            }
+            // Başına 0 ekleyip deneyelim
+            $phoneVariations[] = '0' . $cleanPhone;
+        }
+        
+        // Temiz hali de ekle (örn: 90555...)
+        if (!in_array($cleanPhone, $phoneVariations)) {
+            $phoneVariations[] = $cleanPhone;
+        }
 
         try {
             // 1. Kullanıcıyı users tablosunda ara
-            $stmt = $pdo->prepare("SELECT * FROM users WHERE phone = ?");
-            $stmt->execute([$phone]);
+            $placeholders = implode(',', array_fill(0, count($phoneVariations), '?'));
+            $stmt = $pdo->prepare("SELECT * FROM users WHERE phone IN ($placeholders)");
+            $stmt->execute($phoneVariations);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
             // Eğer users tablosunda yoksa, drivers tablosuna bak (username = phone)
             if (!$user) {
-                $stmt = $pdo->prepare("SELECT * FROM drivers WHERE username = ?");
-                $stmt->execute([$phone]);
+                $stmt = $pdo->prepare("SELECT * FROM drivers WHERE username IN ($placeholders)");
+                $stmt->execute($phoneVariations);
                 $driver = $stmt->fetch(PDO::FETCH_ASSOC);
 
                 if ($driver) {
@@ -80,6 +103,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $pdo->prepare("SELECT * FROM drivers WHERE user_id = ?");
                 $stmt->execute([$user['id']]);
                 $driver = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                // Eğer user_id ile bulunamadıysa, telefon numarası ile tekrar dene ve EŞLEŞTİR
+                if (!$driver) {
+                     $stmt = $pdo->prepare("SELECT * FROM drivers WHERE username IN ($placeholders)");
+                     $stmt->execute($phoneVariations);
+                     $driver = $stmt->fetch(PDO::FETCH_ASSOC);
+                     
+                     if ($driver) {
+                         // Eşleşme bulundu, user_id'yi güncelle
+                         $pdo->prepare("UPDATE drivers SET user_id = ? WHERE id = ?")->execute([$user['id'], $driver['id']]);
+                     }
+                }
 
                 if ($driver) {
                     // Kullanıcı aynı zamanda bir SÜRÜCÜ

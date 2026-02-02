@@ -21,6 +21,7 @@ class _LoginScreenState extends State<LoginScreen> {
   String _selectedCountryCode = '+90';
 
   void _showRegistrationDialog() {
+    final screenContext = context;
     final nameController = TextEditingController();
     final phoneController = TextEditingController();
     final codeController = TextEditingController();
@@ -59,7 +60,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      
+
                       // Title
                       Text(
                         isCodeSent ? 'Doğrulama Kodu' : 'Yeni Üyelik',
@@ -71,9 +72,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        isCodeSent 
-                          ? 'Telefonunuza gönderilen 4 haneli kodu giriniz.' 
-                          : 'Hızlıca kayıt olup yolculuğa başlayın.',
+                        isCodeSent
+                            ? 'Telefonunuza gönderilen 4 haneli kodu giriniz.'
+                            : 'Hızlıca kayıt olup yolculuğa başlayın.',
                         textAlign: TextAlign.center,
                         style: GoogleFonts.poppins(
                           color: Colors.white54,
@@ -96,14 +97,20 @@ class _LoginScreenState extends State<LoginScreen> {
                             decoration: const InputDecoration(
                               hintText: 'Ad Soyad',
                               hintStyle: TextStyle(color: Colors.white38),
-                              prefixIcon: Icon(Icons.person_outline_rounded, color: Colors.white54),
+                              prefixIcon: Icon(
+                                Icons.person_outline_rounded,
+                                color: Colors.white54,
+                              ),
                               border: InputBorder.none,
-                              contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 16,
+                              ),
                             ),
                           ),
                         ),
                         const SizedBox(height: 16),
-                        
+
                         // Phone Input
                         Container(
                           decoration: BoxDecoration(
@@ -119,7 +126,9 @@ class _LoginScreenState extends State<LoginScreen> {
                               hintText: '5XX XXX XX XX',
                               hintStyle: const TextStyle(color: Colors.white38),
                               border: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                              contentPadding: const EdgeInsets.symmetric(
+                                vertical: 16,
+                              ),
                               prefixIcon: CountryCodePicker(
                                 onChanged: (country) {
                                   dialogCountryCode = country.dialCode ?? '+90';
@@ -132,16 +141,23 @@ class _LoginScreenState extends State<LoginScreen> {
                                 padding: EdgeInsets.zero,
                                 textStyle: const TextStyle(color: Colors.white),
                                 dialogBackgroundColor: const Color(0xFF1E1E1E),
-                                dialogTextStyle: const TextStyle(color: Colors.white),
+                                dialogTextStyle: const TextStyle(
+                                  color: Colors.white,
+                                ),
                                 searchDecoration: const InputDecoration(
                                   hintText: 'Ülke Ara',
                                   hintStyle: TextStyle(color: Colors.white54),
-                                  prefixIcon: Icon(Icons.search, color: Colors.white54),
+                                  prefixIcon: Icon(
+                                    Icons.search,
+                                    color: Colors.white54,
+                                  ),
                                   filled: true,
                                   fillColor: Color(0xFF2C2C2C),
                                   border: OutlineInputBorder(
                                     borderSide: BorderSide.none,
-                                    borderRadius: BorderRadius.all(Radius.circular(10.0)),
+                                    borderRadius: BorderRadius.all(
+                                      Radius.circular(10.0),
+                                    ),
                                   ),
                                 ),
                               ),
@@ -170,9 +186,14 @@ class _LoginScreenState extends State<LoginScreen> {
                             decoration: const InputDecoration(
                               counterText: '',
                               hintText: '----',
-                              hintStyle: TextStyle(color: Colors.white12, letterSpacing: 12),
+                              hintStyle: TextStyle(
+                                color: Colors.white12,
+                                letterSpacing: 12,
+                              ),
                               border: InputBorder.none,
-                              contentPadding: EdgeInsets.symmetric(vertical: 16),
+                              contentPadding: EdgeInsets.symmetric(
+                                vertical: 16,
+                              ),
                             ),
                           ),
                         ),
@@ -185,87 +206,136 @@ class _LoginScreenState extends State<LoginScreen> {
                         width: double.infinity,
                         height: 56,
                         child: ElevatedButton(
-                          onPressed: isLoading
-                              ? null
-                              : () async {
-                                  if (!isCodeSent) {
-                                    // Send Code Logic
-                                    if (nameController.text.isEmpty || phoneController.text.isEmpty) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Lütfen tüm alanları doldurun.')),
-                                      );
-                                      return;
-                                    }
-
-                                    setState(() => isLoading = true);
-                                    final res = await ApiService().sendOtp(
-                                      nameController.text,
-                                      '$dialogCountryCode${phoneController.text}',
-                                    );
-                                    setState(() => isLoading = false);
-
-                                    if (res['success'] == true) {
-                                      setState(() => isCodeSent = true);
-                                    } else {
-                                      // ignore: use_build_context_synchronously
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text(res['message'] ?? 'Hata oluştu'),
-                                          backgroundColor: Colors.red,
-                                        ),
-                                      );
-                                    }
-                                  } else {
-                                    // Verify Code Logic
-                                    if (codeController.text.length != 4) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Lütfen 4 haneli kodu girin.')),
-                                      );
-                                      return;
-                                    }
-
-                                    setState(() => isLoading = true);
-                                    final res = await ApiService().verifyOtp(
-                                      '$dialogCountryCode${phoneController.text}',
-                                      codeController.text,
-                                    );
-                                    setState(() => isLoading = false);
-
-                                    if (res['success'] == true) {
-                                      // Save User Data
-                                      final prefs = await SharedPreferences.getInstance();
-                                      await prefs.setInt('user_id', res['data']['id']);
-                                      await prefs.setString('user_name', res['data']['name'] ?? '');
-                                      await prefs.setString('user_phone', res['data']['phone']);
-                                      await prefs.setString('user_role', 'customer');
-                                      if (res['data']['profile_photo'] != null) {
-                                        await prefs.setString('user_photo', res['data']['profile_photo']);
+                          onPressed:
+                              isLoading
+                                  ? null
+                                  : () async {
+                                    if (!isCodeSent) {
+                                      // Send Code Logic
+                                      if (nameController.text.isEmpty ||
+                                          phoneController.text.isEmpty) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'Lütfen tüm alanları doldurun.',
+                                            ),
+                                          ),
+                                        );
+                                        return;
                                       }
 
-                                      // ignore: use_build_context_synchronously
-                                      Navigator.pop(context); // Close dialog
-                                      // ignore: use_build_context_synchronously
-                                      Navigator.of(context).pushReplacement(
-                                        MaterialPageRoute(builder: (context) => const HomeScreen()),
+                                      setState(() => isLoading = true);
+                                      final res = await ApiService().sendOtp(
+                                        nameController.text,
+                                        '$dialogCountryCode${phoneController.text}',
                                       );
-                                      // ignore: use_build_context_synchronously
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
-                                          content: Text('Kayıt başarılı! Hoş geldiniz.'),
-                                          backgroundColor: Colors.green,
-                                        ),
-                                      );
+                                      setState(() => isLoading = false);
+
+                                      if (res['success'] == true) {
+                                        setState(() => isCodeSent = true);
+                                      } else {
+                                        if (!context.mounted) return;
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              res['message'] ?? 'Hata oluştu',
+                                            ),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                      }
                                     } else {
-                                      // ignore: use_build_context_synchronously
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text(res['message'] ?? 'Hata oluştu'),
-                                          backgroundColor: Colors.red,
-                                        ),
+                                      // Verify Code Logic
+                                      if (codeController.text.length != 4) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'Lütfen 4 haneli kodu girin.',
+                                            ),
+                                          ),
+                                        );
+                                        return;
+                                      }
+
+                                      setState(() => isLoading = true);
+                                      final res = await ApiService().verifyOtp(
+                                        '$dialogCountryCode${phoneController.text}',
+                                        codeController.text,
                                       );
+                                      setState(() => isLoading = false);
+
+                                      if (res['success'] == true) {
+                                        // Save User Data
+                                        final prefs =
+                                            await SharedPreferences.getInstance();
+                                        await prefs.setInt(
+                                          'user_id',
+                                          res['data']['id'],
+                                        );
+                                        await prefs.setString(
+                                          'user_name',
+                                          res['data']['name'] ?? '',
+                                        );
+                                        await prefs.setString(
+                                          'user_phone',
+                                          res['data']['phone'],
+                                        );
+                                        await prefs.setString(
+                                          'user_role',
+                                          'customer',
+                                        );
+                                        if (res['data']['profile_photo'] !=
+                                            null) {
+                                          await prefs.setString(
+                                            'user_photo',
+                                            res['data']['profile_photo'],
+                                          );
+                                        }
+
+                                        if (!context.mounted) return;
+                                        Navigator.pop(context); // Close dialog
+
+                                        if (!mounted) return;
+                                        Navigator.of(
+                                          screenContext,
+                                        ).pushReplacement(
+                                          MaterialPageRoute(
+                                            builder:
+                                                (context) => const HomeScreen(),
+                                          ),
+                                        );
+
+                                        ScaffoldMessenger.of(
+                                          screenContext,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'Kayıt başarılı! Hoş geldiniz.',
+                                            ),
+                                            backgroundColor: Colors.green,
+                                          ),
+                                        );
+                                      } else {
+                                        if (!context.mounted) return;
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              res['message'] ?? 'Hata oluştu',
+                                            ),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                      }
                                     }
-                                  }
-                                },
+                                  },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFFFD700),
                             foregroundColor: Colors.black,
@@ -274,22 +344,25 @@ class _LoginScreenState extends State<LoginScreen> {
                               borderRadius: BorderRadius.circular(16),
                             ),
                           ),
-                          child: isLoading
-                              ? const SizedBox(
-                                  height: 24,
-                                  width: 24,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.black,
-                                    strokeWidth: 2,
+                          child:
+                              isLoading
+                                  ? const SizedBox(
+                                    height: 24,
+                                    width: 24,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.black,
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                  : Text(
+                                    isCodeSent
+                                        ? 'Doğrula ve Başla'
+                                        : 'Kodu Gönder',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
-                                )
-                              : Text(
-                                  isCodeSent ? 'Doğrula ve Başla' : 'Kodu Gönder',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
                         ),
                       ),
 
@@ -339,53 +412,77 @@ class _LoginScreenState extends State<LoginScreen> {
       });
 
       if (response['success'] == true) {
-        // Save user data
-        final prefs = await SharedPreferences.getInstance();
-        if (response['data'] != null) {
-          await prefs.setInt('user_id', response['data']['id']);
-          await prefs.setString(
-            'user_name',
-            response['data']['full_name'] ?? '',
-          );
-          await prefs.setString('user_phone', response['data']['phone']);
-          if (response['data']['profile_photo'] != null) {
-            await prefs.setString(
-              'user_photo',
-              response['data']['profile_photo'],
+        try {
+          // Save user data
+          final prefs = await SharedPreferences.getInstance();
+          if (response['data'] != null) {
+            final userId = response['data']['id'];
+            if (userId is int) {
+              await prefs.setInt('user_id', userId);
+            } else if (userId is String) {
+              await prefs.setInt('user_id', int.tryParse(userId) ?? 0);
+            }
+
+            // Handle name/full_name safely
+            final userName =
+                response['data']['full_name'] ?? response['data']['name'] ?? '';
+            await prefs.setString('user_name', userName.toString());
+
+            // Handle phone safely
+            final userPhone = response['data']['phone'];
+            if (userPhone != null) {
+              await prefs.setString('user_phone', userPhone.toString());
+            }
+
+            // Handle profile photo safely
+            final userPhoto = response['data']['profile_photo'];
+            if (userPhoto != null && userPhoto.toString().isNotEmpty) {
+              await prefs.setString('user_photo', userPhoto.toString());
+            }
+          }
+
+          final role = response['role'];
+          if (role != null) {
+            await prefs.setString('user_role', role.toString());
+          }
+
+          if (!mounted) return;
+
+          if (role == 'driver') {
+            // Sürücü Ana Sayfasına Yönlendir
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder:
+                    (context) => DriverHomeScreen(driverData: response['data']),
+              ),
+            );
+          } else if (role == 'customer') {
+            // Müşteri Ana Sayfasına Yönlendir
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (context) => const HomeScreen()),
+            );
+          } else if (role == 'driver_expired') {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Sürücü abonelik süreniz dolmuştur.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          } else {
+            // Bilinmeyen rol veya rol yoksa, müşteriye yönlendir
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (context) => const HomeScreen()),
             );
           }
-        }
-
-        final role = response['role'];
-        await prefs.setString('user_role', role);
-
-        if (!mounted) return;
-
-        if (role == 'driver') {
-          // Sürücü Ana Sayfasına Yönlendir
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder:
-                  (context) => DriverHomeScreen(driverData: response['data']),
-            ),
-          );
-        } else if (role == 'customer') {
-          // Müşteri Ana Sayfasına Yönlendir
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (context) => const HomeScreen()),
-          );
-        } else if (role == 'driver_expired') {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Sürücü abonelik süreniz dolmuştur.'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        } else {
-          // Bilinmeyen rol, müşteriye yönlendir
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (context) => const HomeScreen()),
-          );
+        } catch (e) {
+          debugPrint('Login data save error: $e');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Giriş verileri işlenirken hata oluştu: $e'),
+              ),
+            );
+          }
         }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
