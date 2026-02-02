@@ -87,6 +87,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     if (permission == LocationPermission.deniedForever) return;
 
     Position position = await Geolocator.getCurrentPosition();
+    if (!mounted) return;
     setState(() {
       _currentPosition = LatLng(position.latitude, position.longitude);
       _isLocationLoaded = true; // Konum başarıyla alındı
@@ -100,6 +101,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     if (!_isLocationLoaded) {
       // Eğer konum henüz alınamadıysa tekrar dene
       await _getCurrentLocation();
+      if (!mounted) return;
       if (!_isLocationLoaded) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
