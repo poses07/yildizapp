@@ -375,16 +375,57 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _getCurrentLocation() async {
-    // Temporary fixed location: Antalya Airport
-    const fixedPosition = LatLng(36.8993, 30.8013);
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    // Test if location services are enabled.
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      // Location services are not enabled.
+      // Fallback to default or show error.
+      // For now, we just return and keep the default/previous position.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Konum servisleri kapalı.')),
+        );
+      }
+      return;
+    }
+
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Konum izni reddedildi.')),
+          );
+        }
+        return;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Konum izni kalıcı olarak reddedildi. Ayarlardan açmanız gerekiyor.')),
+        );
+      }
+      return;
+    }
+
+    // When we reach here, permissions are granted.
+    final position = await Geolocator.getCurrentPosition();
+
+    if (!mounted) return;
 
     setState(() {
-      _currentPosition = fixedPosition;
+      _currentPosition = LatLng(position.latitude, position.longitude);
     });
 
     final GoogleMapController controller = await _controller.future;
     controller.animateCamera(CameraUpdate.newLatLng(_currentPosition));
-    _updateMarkers(); // Ensure marker is shown immediately
+    _updateMarkers();
   }
 
   void _updateMarkers() {

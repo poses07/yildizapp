@@ -136,11 +136,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reset_device'])) {
 // Sürücü Onaylama
 if (isset($_GET['approve'])) {
     $driverId = $_GET['approve'];
-    // 30 gün deneme süresi ver
-    $subscriptionEnd = date('Y-m-d H:i:s', strtotime("+30 days"));
+    // Abonelik süresini güncelleme, sadece onay ver
+    // Yönetici "Süre Uzat" butonu ile manuel süre eklemelidir
     
-    $stmt = $pdo->prepare("UPDATE drivers SET status = 'approved', subscription_end_date = ? WHERE id = ?");
-    $stmt->execute([$subscriptionEnd, $driverId]);
+    $stmt = $pdo->prepare("UPDATE drivers SET status = 'approved' WHERE id = ?");
+    $stmt->execute([$driverId]);
     
     header("Location: drivers.php?success=approved");
     exit;

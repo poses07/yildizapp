@@ -118,23 +118,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 if ($driver) {
                     // Kullanıcı aynı zamanda bir SÜRÜCÜ
-                    // Abonelik süresini kontrol et
-                    $subscriptionEnd = strtotime($driver['subscription_end_date']);
-                    $now = time();
-
-                    if ($now > $subscriptionEnd) {
+                    
+                    // Önce sürücü durumunu kontrol et
+                    if ($driver['status'] === 'pending') {
                         $response['success'] = false;
-                        $response['message'] = 'Sürücü abonelik süreniz dolmuştur. Lütfen yöneticinizle iletişime geçin.';
-                        $response['role'] = 'driver_expired';
+                        $response['message'] = 'Sürücü başvurunuz henüz onaylanmamıştır. Lütfen yönetici onayı bekleyin.';
+                        $response['role'] = 'driver_pending';
+                    } elseif ($driver['status'] === 'suspended' || $driver['status'] === 'blocked') {
+                        $response['success'] = false;
+                        $response['message'] = 'Sürücü hesabınız askıya alınmıştır.';
+                        $response['role'] = 'driver_suspended';
                     } else {
-                        $response['success'] = true;
-                        $response['message'] = 'Sürücü girişi başarılı';
-                        $response['role'] = 'driver';
-                        
-                        // Sürücü ismini user objesine de yansıt ki arayüzde doğru görünsün
-                        $user['name'] = $driver['full_name'];
-                        
-                        $response['data'] = array_merge($user, ['driver_details' => $driver]);
+                        // Durum onaylı ise abonelik süresini kontrol et
+                        $subscriptionEnd = strtotime($driver['subscription_end_date']);
+                        $now = time();
+    
+                        if ($now > $subscriptionEnd) {
+                            $response['success'] = false;
+                            $response['message'] = 'Sürücü abonelik süreniz dolmuştur. Lütfen yöneticinizle iletişime geçin.';
+                            $response['role'] = 'driver_expired';
+                        } else {
+                            $response['success'] = true;
+                            $response['message'] = 'Sürücü girişi başarılı';
+                            $response['role'] = 'driver';
+                            
+                            // Sürücü ismini user objesine de yansıt ki arayüzde doğru görünsün
+                            $user['name'] = $driver['full_name'];
+                            
+                            $response['data'] = array_merge($user, ['driver_details' => $driver]);
+                        }
                     }
                 } else {
                     // Kullanıcı sadece MÜŞTERİ
