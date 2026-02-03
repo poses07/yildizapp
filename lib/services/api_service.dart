@@ -7,18 +7,8 @@ import 'package:device_info_plus/device_info_plus.dart';
 class ApiService {
   // Use 10.0.2.2 for Android Emulator, localhost for iOS simulator, or local IP for real device
   static String get _baseUrl {
-    // Production URL (Canlı Sunucu)
+    // Production URL (Canlı Sunucu) - Her zaman burayı kullan
     return 'http://wowcrazyviptransfer.com/api';
-
-    /* Localhost Geliştirme Modu için:
-    if (kDebugMode) {
-      if (Platform.isAndroid) {
-        return 'http://10.0.2.2/yildizapp/backend/api';
-      } else if (Platform.isIOS) {
-        return 'http://localhost/yildizapp/backend/api';
-      }
-    }
-    */
   }
 
   static String get baseUrl => _baseUrl;
